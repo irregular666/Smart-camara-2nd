@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能网关 — 视频监控系统</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+
+    <!-- ==================================================================
+         Auth Section (Login / Register / TOTP)
+         ================================================================== -->
+    <div class="auth-wrapper" id="authWrapper">
+
+        <!-- Login & Register Card -->
+        <div class="auth-card" id="authView">
+            <div class="auth-brand">
+                <div class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </div>
+                <h1>网关终端管理</h1>
+                <p>安全 · 可靠 · 实时监控</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button id="tabLoginBtn" class="active">账户登录</button>
+                <button id="tabRegBtn">注册新用户</button>
+            </div>
+
+            <!-- Login Form -->
+            <div class="form-panel visible" id="loginBox">
+                <div class="field">
+                    <label class="field-label">邮箱地址</label>
+                    <input id="loginEmail" type="email" class="field-input" placeholder="admin@example.com" autocomplete="email">
+                </div>
+                <div class="field">
+                    <label class="field-label">账户密码</label>
+                    <input id="loginPwd" type="password" class="field-input" placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <button class="btn btn-primary" id="btnLogin">
+                    <span id="btnLoginText">登录并获取验证码</span>
+                    <span id="btnLoginSpinner" style="display:none" class="spinner"></span>
+                </button>
+            </div>
+
+            <!-- Register Form -->
+            <div class="form-panel" id="regBox">
+                <div class="field">
+                    <label class="field-label">注册邮箱</label>
+                    <input id="regEmail" type="email" class="field-input" placeholder="your@email.com">
+                </div>
+                <div class="field">
+                    <label class="field-label">设置密码</label>
+                    <input id="regPwd" type="password" class="field-input" placeholder="至少 6 位字符">
+                </div>
+                <div class="field">
+                    <label class="field-label">邀请码 <span style="color:var(--gray-400);font-weight:400;">(选填)</span></label>
+                    <input id="regInvite" type="text" class="field-input" placeholder="管理员邀请码，普通用户留空">
+                    <p class="field-hint">持有邀请码将注册为系统管理员</p>
+                </div>
+                <button class="btn btn-primary" id="btnRegister">
+                    <span id="btnRegText">立即注册</span>
+                    <span id="btnRegSpinner" style="display:none" class="spinner"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- TOTP Verification Card -->
+        <div class="auth-card" id="totpView" style="display:none;">
+            <div class="totp-section">
+                <div class="totp-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </div>
+                <h2>双因素认证</h2>
+                <p class="totp-desc">一封包含 6 位动态验证码的邮件已发送至<br><strong id="totpEmailDisplay"></strong><br>请在下方输入验证码，有效期为 60 秒</p>
+
+                <div class="totp-input-group" id="totpGroup">
+                    <input type="text" class="totp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="0">
+                    <input type="text" class="totp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="1">
+                    <input type="text" class="totp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="2">
+                    <input type="text" class="totp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="3">
+                    <input type="text" class="totp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="4">
+                    <input type="text" class="totp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="5">
+                </div>
+
+                <button class="btn btn-success" id="btnVerifyTotp">
+                    <span id="btnVerifyText">验证并进入监控台</span>
+                    <span id="btnVerifySpinner" style="display:none" class="spinner"></span>
+                </button>
+
+                <button class="totp-back" id="btnBackToLogin">← 返回登录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================================================================
+         Dashboard Section
+         ================================================================== -->
+    <div class="dashboard" id="dashboardView">
+
+        <!-- Mobile overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="s-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="s-title">网关监控</div>
+                    <div class="s-subtitle">Surveillance Console</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <span class="nav-section-label">主导航</span>
+                <button class="nav-item active" data-nav="monitor">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    实时监控
+                    <span class="nav-badge live" id="navOnlineCount">0</span>
+                </button>
+                <button class="nav-item" data-nav="devices">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+                    </svg>
+                    全部设备
+                    <span class="nav-badge" id="navTotalCount">0</span>
+                </button>
+                <button class="nav-item" data-nav="playback">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+                    </svg>
+                    录像回放
+                </button>
+
+                <!-- Admin Section (conditional) -->
+                <div id="adminNavSection" style="display:none;">
+                    <span class="nav-section-label">管理员</span>
+                    <button class="nav-item" id="btnOpenDeviceModal">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                        </svg>
+                        授权新设备
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-info">
+                        <div class="user-name" id="sidebarUserEmail">user@example.com</div>
+                        <div class="user-role" id="sidebarUserRole">普通用户</div>
+                    </div>
+                    <button class="btn-logout" id="btnLogout" title="退出登录">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-area">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="menu-toggle" id="menuToggle">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+                        </svg>
+                    </button>
+                    <h2>实时监控画面</h2>
+                </div>
+                <div class="topbar-right">
+                    <div class="secure-badge">
+                        <span class="pulse-dot"></span> 安全链路已建立
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="content">
+                <!-- Stat Cards -->
+                <div class="stat-grid" id="statGrid">
+                    <div class="stat-card accent-blue">
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="statTotal">0</div>
+                        <div class="stat-label">设备总数</div>
+                    </div>
+                    <div class="stat-card accent-green">
+                        <div class="stat-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="statOnline">0</div>
+                        <div class="stat-label">在线设备</div>
+                    </div>
+                    <div class="stat-card accent-amber">
+                        <div class="stat-icon amber">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="statOffline">0</div>
+                        <div class="stat-label">离线设备</div>
+                    </div>
+                    <div class="stat-card accent-indigo">
+                        <div class="stat-icon indigo">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value" id="statUptime">--</div>
+                        <div class="stat-label">系统运行时间</div>
+                    </div>
+                </div>
+
+                <!-- Device Section -->
+                <div class="section-header">
+                    <h3>摄像头设备</h3>
+                    <span class="section-meta" id="sectionMeta">自动刷新中...</span>
+                </div>
+
+                <div class="device-grid" id="deviceList">
+                    <!-- Dynamically populated -->
+                </div>
+
+                <!-- Playback Panel -->
+                <div class="playback-panel" id="playbackPanel">
+                    <div class="playback-layout">
+                        <!-- Selector Bar -->
+                        <div class="playback-selector">
+                            <div class="selector-group">
+                                <span class="selector-label">选择设备</span>
+                                <select class="device-select" id="playbackDeviceSelect">
+                                    <option value="">-- 选择摄像头 --</option>
+                                </select>
+                            </div>
+                            <div class="selector-group" style="flex:1;min-width:200px;">
+                                <span class="selector-label">选择日期</span>
+                                <div class="chip-list" id="dateChipList">
+                                    <span class="chip-placeholder">请先选择设备</span>
+                                </div>
+                            </div>
+                            <div class="selector-group" style="flex:1;min-width:200px;">
+                                <span class="selector-label">选择时段</span>
+                                <div class="chip-list" id="hourChipList">
+                                    <span class="chip-placeholder">请先选择日期</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Player -->
+                        <div class="playback-player" id="playbackPlayer">
+                            <div class="player-placeholder" id="playerPlaceholder">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+                                </svg>
+                                <span>选择设备和时间以播放录像</span>
+                            </div>
+                            <img id="playbackImg" src="" alt="录像回放" style="display:none;">
+                        </div>
+
+                        <!-- Storage Stats -->
+                        <div class="storage-section" id="storageStatsSection">
+                            <h4>存储概况</h4>
+                            <div id="storageStatsContent">
+                                <p class="text-muted">加载中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ==================================================================
+         Device Registration Modal (Admin)
+         ================================================================== -->
+    <div class="modal-overlay hidden" id="deviceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h3>授权新设备</h3>
+                    <p>为摄像头终端签发接入网关的安全凭证</p>
+                </div>
+                <button class="modal-close" id="btnCloseModal">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="field">
+                    <label class="field-label">设备 UID</label>
+                    <input id="devUid" type="text" class="field-input" placeholder="例如: CAM-001">
+                    <p class="field-hint">摄像头的唯一标识符，用于区分不同设备</p>
+                </div>
+                <div class="field">
+                    <label class="field-label">预共享密钥 (PSK)</label>
+                    <input id="devPsk" type="password" class="field-input" placeholder="输入高强度的密钥">
+                    <p class="field-hint">用于 SM3-HMAC 挑战-应答认证，请妥善保管</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="btnCancelDevice">取消</button>
+                <button class="btn btn-primary btn-sm" id="btnRegisterDevice">
+                    <span id="btnDeviceText">签发凭证</span>
+                    <span id="btnDeviceSpinner" style="display:none" class="spinner spinner-dark"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================================================================
+         Toast Container
+         ================================================================== -->
+    <div class="toast-container" id="toastContainer"></div>
+
+</body>
+</html>
