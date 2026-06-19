@@ -216,10 +216,11 @@ import smtplib
 import struct
 import sqlite3
 import shutil
+import json
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.header import Header
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, make_response
 from flask_cors import CORS
 from gmssl import sm3
 
@@ -230,7 +231,6 @@ ADMIN_SECRET_CODE = "admin888"  # 注册成为管理员的专属邀请码
 DB_FILE = "gateway.db"  # SQLite 数据库文件
 RECORDINGS_DIR = "recordings"  # 录像存储根目录
 RECORDING_RETENTION_DAYS = 180  # 录像保留天数（半年）
-# ============================================================
 
 app = Flask(__name__)
 CORS(app)
@@ -655,6 +655,7 @@ def handle_device(conn, addr):
         if device_response == expected_mac:
             conn.send(b"AUTH_SUCCESS")
             devices_status[uid] = {"status": "online", "last_frame": None}
+            recording_enabled.setdefault(uid, True)
             print(f"摄像头 {uid} 认证成功，开始接收视频流...")
 
             conn.settimeout(None)
@@ -696,4 +697,5 @@ if __name__ == "__main__":
     threading.Thread(target=start_socket_server, daemon=True).start()
     # 启动录像自动清理调度（启动后立即执行一次，之后每6小时执行）
     threading.Thread(target=schedule_cleanup, daemon=True).start()
+    print("网关系统已就绪，等待摄像头连接...")
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

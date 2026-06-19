@@ -628,25 +628,47 @@ function switchPage(page) {
     currentPage = page;
 
     // Hide all content panels
-    document.getElementById("deviceList").parentElement.style.display =
-        page === "playback" ? "none" : "";
-    document.getElementById("playbackPanel").classList.toggle("visible", page === "playback");
+    const isPlayback = page === "playback";
+    const isAlerts = page === "alerts";
+
+    document.getElementById("deviceList").style.display =
+        (isPlayback || isAlerts) ? "none" : "";
+    document.getElementById("playbackPanel").classList.toggle("visible", isPlayback);
+    document.getElementById("alertsPanel").classList.toggle("visible", isAlerts);
     document.querySelector(".section-header").style.display =
-        page === "playback" ? "none" : "";
+        (isPlayback || isAlerts) ? "none" : "";
     document.getElementById("statGrid").style.display =
-        page === "playback" ? "none" : "";
+        (isPlayback || isAlerts) ? "none" : "";
 
     // Update topbar title
     const titles = {
         monitor: "实时监控画面",
         devices: "全部设备",
-        playback: "录像回放"
+        playback: "录像回放",
+        alerts: "安全告警"
     };
     document.querySelector(".topbar-left h2").textContent = titles[page] || "监控中心";
 
     if (page === "playback") {
         populatePlaybackDevices();
         loadStorageStats();
+    }
+
+    if (page === "alerts") {
+        // 安全告警页面（人脸识别功能已移除，保留页面框架供后续扩展）
+        document.getElementById("alertList").innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                </div>
+                <h3>安全告警</h3>
+                <p>人脸识别功能已暂时关闭，此页面将在功能优化后重新开放</p>
+            </div>`;
+        document.getElementById("alertsMeta").textContent = "功能维护中";
+        document.getElementById("knownFacesGrid").innerHTML = '<p class="text-muted" style="grid-column:1/-1;">功能维护中</p>';
+        document.getElementById("riskFramesGrid").innerHTML = '<p class="text-muted" style="grid-column:1/-1;">功能维护中</p>';
     }
 }
 
